@@ -11,7 +11,9 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar;
 
 namespace Echo_Sense
 {
@@ -34,39 +36,24 @@ namespace Echo_Sense
 
         }
 
-
         public Form1()
         {
             InitializeComponent();
-
             this.InitializeKinect();
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            this.music = soundEngine.GetSoundSource("C:\\Users\\User\\source\\repos\\Echo Sense\\sound2.wav", true);
+            Console.WriteLine("STARTED");
+
+            this.soundEngine.SoundVolume = 0.5f;
+            this.music = soundEngine.GetSoundSource("C:\\Users\\Nytri\\source\\repos\\echo-sense\\sound2-very-loud.wav", true);
             soundEngine.SetListenerPosition(0, 0, 0, 0, 0, 1);
 
             if (this.music == null)
             {
                 Console.WriteLine("Error playing 3D sound.");
                 return;
-            }
-
-            void FunctionToExecute()
-            {
-                lock (dataLock) // Ensure thread-safe access
-                {
-                    for (int i = 0; i < blobsParams.Count; i++)
-                    {
-                        var parameters = blobsParams[i];
-                        Console.WriteLine($"Thread executing with parameters:{i} {parameters.X}, {parameters.Y} {parameters.Z}");
-                        this.soundEngine.Play3D(this.music, parameters.X, parameters.Y, parameters.Z,false,false,false);
-                        Thread.Sleep(100);
-                    }
-                    //blobsParams.Clear();
-
-                }
             }
 
             Thread thread = new Thread(() =>
@@ -79,7 +66,42 @@ namespace Echo_Sense
             });
 
             thread.Start();
+        }
 
+        private void FunctionToExecute()
+        {
+            lock (dataLock) // Ensure thread-safe access
+            {
+                for (int i = 0; i < blobsParams.Count; i++)
+                {
+                    var parameters = blobsParams[i];
+                    Console.WriteLine($"Thread executing with parameters:{i} {parameters.X}, {parameters.Y} {parameters.Z}");
+                    this.soundEngine.Play2D("C:\\Users\\Nytri\\source\\repos\\echo-sense\\sound2-loud.wav");
+                    //this.soundEngine.Play3D(this.music, parameters.X, parameters.Y, parameters.Z, false, false, false);
+                    Thread.Sleep(100);
+                }
+                //blobsParams.Clear();
+            }
+        }
+
+        // Method to calculate soundTiming based on depth (Z value)
+        private int CalculateSoundTiming(float depth)
+        {
+            Console.WriteLine(depth);
+            // Define the range for depth and corresponding soundTiming
+            float minDepth = 0.1f; // Minimum depth (closest)
+            float maxDepth = 5.0f; // Maximum depth (farthest)
+            int minSoundTiming = 0; // Minimum sound timing (closest)
+            int maxSoundTiming = 2000; // Maximum sound timing (farthest)
+
+            // Ensure depth is within the defined range
+            depth = Math.Max(minDepth, Math.Min(maxDepth, depth));
+
+            // Calculate soundTiming based on depth
+            int soundTiming = (int)((depth - minDepth) / (maxDepth - minDepth) * (maxSoundTiming - minSoundTiming) + minSoundTiming);
+
+            // Invert the soundTiming value
+            return maxSoundTiming - soundTiming;
         }
 
 
@@ -152,13 +174,13 @@ namespace Echo_Sense
 
                         int length = (int)Math.Sqrt(scaledCenterX * scaledCenterX + scaledCenterY * scaledCenterY + 2 * 2);
 
-                     
+
                         if (length != 0)
                         {
                             float normalizedX = (float)scaledCenterX / length;
                             float normalizedY = (float)scaledCenterY / length;
 
-                            blobsParams.Add(new BlobParameters { X = normalizedX * 10, Y = normalizedY *5, Z = (10f / length) * 10 });
+                            blobsParams.Add(new BlobParameters { X = normalizedX * 10, Y = normalizedY * 5, Z = (10f / length) * 10 });
                         }
                         //blobsParams.Add(new BlobParameters { X = -20 /length, Y = 0/ length, Z = 2 / length });
 
@@ -166,7 +188,6 @@ namespace Echo_Sense
                         //CvInvoke.Circle(bitmapSource, new Point(centerX, centerY), 20, new MCvScalar(255, 255, 255, 255), -1);
                         CvInvoke.PutText(bitmapSource, $"{scaledCenterX}, {scaledCenterY}, {length}", new Point(centerX, centerY), FontFace.HersheyComplex, 1, new MCvScalar(255, 255, 255, 255), 2);
                     }
-
 
 
                     CvInvoke.DrawContours(bitmapSource, redContours, -1, new MCvScalar(0, 255, 0), 2);
@@ -181,7 +202,6 @@ namespace Echo_Sense
                     redContours.Dispose();
                     bitmapSource.Dispose();
                     //contours.Dispose();
-
                 }
             }
         }
@@ -286,9 +306,6 @@ namespace Echo_Sense
             }
         }
 
-
-
-
         private Bitmap ColorizeDepthImage(DepthImageFrame depthFrame)
         {
             int width = depthFrame.Width;
@@ -296,9 +313,10 @@ namespace Echo_Sense
             Bitmap colorizedBitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
             // Define depth ranges for colorization
-            int blackMinDepth = 0;
-            int blackMaxDepth = 400;
-            int redMinDepth = 401;
+            //int blackMinDepth = 0;
+            //int blackMaxDepth = 400;
+            //int redMinDepth = 401;
+            int redMinDepth = 0;
             int redMaxDepth = 700;
             int blueMinDepth = 701;
             int blueMaxDepth = 1200;
@@ -323,11 +341,12 @@ namespace Echo_Sense
                         byte green = 0;
                         byte blue = 0;
 
-                        if (depth >= blackMinDepth && depth <= blackMaxDepth)
-                        {
+                        //if (depth >= blackMinDepth && depth <= blackMaxDepth)
+                        //{
                             // Set color to black for pixels in the range 0 to 400
-                        }
-                        else if (depth >= redMinDepth && depth <= redMaxDepth)
+                        //}
+                        //else
+                        if (depth >= redMinDepth && depth <= redMaxDepth)
                         {
                             red = 255;
                         }
