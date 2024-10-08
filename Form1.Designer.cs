@@ -38,46 +38,48 @@
             // 
             // btnGrab
             // 
-            this.btnGrab.Location = new System.Drawing.Point(277, 486);
+            this.btnGrab.Location = new System.Drawing.Point(237, 831);
             this.btnGrab.Name = "btnGrab";
             this.btnGrab.Size = new System.Drawing.Size(75, 23);
             this.btnGrab.TabIndex = 1;
             this.btnGrab.Text = "Grab";
             this.btnGrab.UseVisualStyleBackColor = true;
-            //this.btnGrab.Click += new System.EventHandler(this.button1_Click);
             // 
             // frameBox
             // 
             this.frameBox.Location = new System.Drawing.Point(52, 30);
             this.frameBox.Name = "frameBox";
-            this.frameBox.Size = new System.Drawing.Size(542, 436);
+            this.frameBox.Size = new System.Drawing.Size(889, 653);
             this.frameBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.frameBox.TabIndex = 0;
             this.frameBox.TabStop = false;
+            this.frameBox.Click += new System.EventHandler(this.frameBox_Click);
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(115, 491);
+            this.label1.Location = new System.Drawing.Point(77, 836);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(35, 13);
             this.label1.TabIndex = 2;
             this.label1.Text = "label1";
+            this.label1.Click += new System.EventHandler(this.label1_Click);
             // 
             // pictureBox2
             // 
-            this.pictureBox2.Location = new System.Drawing.Point(648, 30);
+            this.pictureBox2.Location = new System.Drawing.Point(965, 30);
             this.pictureBox2.Name = "pictureBox2";
-            this.pictureBox2.Size = new System.Drawing.Size(550, 436);
+            this.pictureBox2.Size = new System.Drawing.Size(741, 653);
             this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox2.TabIndex = 4;
             this.pictureBox2.TabStop = false;
+            this.pictureBox2.Click += new System.EventHandler(this.pictureBox2_Click);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1428, 538);
+            this.ClientSize = new System.Drawing.Size(1834, 928);
             this.Controls.Add(this.pictureBox2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.btnGrab);
