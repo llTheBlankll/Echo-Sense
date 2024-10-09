@@ -20,7 +20,7 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrackBar;
 
 namespace Echo_Sense
 {
-    public partial class Form1 : Form
+    public partial class DetectForm : Form
     {
         // REGION: YOLO
         private KinectSensor sensor;
@@ -34,12 +34,17 @@ namespace Echo_Sense
         private DateTime nextSoundTime = DateTime.MinValue;
         public static object dataLock = new object(); // Synchronization lock for safety
         private readonly object soundLock = new object();
+        private int frameCount = 0;
+        private const int PROCESS_EVERY_N_FRAMES = 2;
 
-        public Form1()
+        public DetectForm()
         {
             InitializeComponent();
             InitializeKinect();
             InitializeSoundTimer();
+            // Enable double buffering
+            this.DoubleBuffered = true;
+            SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -94,10 +99,12 @@ namespace Echo_Sense
             float pitch = 2.0f - (blob.Z / 10f); // Higher pitch when closer
 
             // Use Play2D with volume and pitch parameters
-            soundEngine.Play3D(music, blob.X, blob.Y, blob.Z, false, false, false);
-            //soundEngine.SoundVolume = 1.0f; // # FOR TESTING
-            soundEngine.SoundVolume = volume;
-            //soundEngine.Play2D("C:\\Users\\Nytri\\source\\repos\\echo-sense\\sound2-very-loud.wav");
+
+            // soundEngine.Play3D(music, blob.X, blob.Y, blob.Z, false, false, false);
+            // soundEngine.SoundVolume = volume;
+
+            soundEngine.SoundVolume = 1.0f; // # FOR TESTING
+            soundEngine.Play2D("C:\\Users\\Nytri\\source\\repos\\echo-sense\\sound2-very-loud.wav");
         }
 
         /// <summary>
@@ -110,8 +117,8 @@ namespace Echo_Sense
         private int CalculateSoundTiming(float depth)
         {
             float minDepth = 0.1f; // Minimum depth (closest)
-            float maxDepth = 4.0f; // Maximum depth (farthest)
-            int minSoundTiming = 100; // Minimum sound timing (closest) in milliseconds
+            float maxDepth = 10.0f; // Maximum depth (farthest)
+            int minSoundTiming = 75; // Minimum sound timing (closest) in milliseconds
             int maxSoundTiming = 1000; // Maximum sound timing (farthest) in milliseconds
 
             // Ensure depth is within the defined range
@@ -130,6 +137,9 @@ namespace Echo_Sense
         /// <param name="e">The event arguments.</param>
         private void SensorDepthFrameReady(object sender, DepthImageFrameReadyEventArgs e)
         {
+            frameCount++;
+            if (frameCount % PROCESS_EVERY_N_FRAMES != 0) return;
+
             using (DepthImageFrame depthFrame = e.OpenDepthImageFrame())
             {
                 if (depthFrame != null)
@@ -149,42 +159,11 @@ namespace Echo_Sense
             depthFrame.CopyDepthImagePixelDataTo(depthMap);
 
             Mat bitmapSource = ColorizeAndFlipDepthImage(depthFrame);
-            Mat resizedBitmap = new Mat();
-            Mat hlsFrame = ConvertToHLS(bitmapSource);
-
-            // Resize
-            CvInvoke.Resize(bitmapSource, resizedBitmap, new Size(640, 640));
-
-            // Display the processed frame in the picture box
             frameBox.Image = bitmapSource.ToBitmap();
 
+            Mat hlsFrame = ConvertToHLS(bitmapSource);
             List<Blob> redBlobCenters = ProcessColorMasks(hlsFrame, bitmapSource);
-
-            lock (soundLock)
-            {
-                blobsParams.Clear();
-                foreach (var blob in redBlobCenters)
-                {
-                    int centerX = (int)blob.CenterX;
-                    int centerY = (int)blob.CenterY;
-
-                    int scaledCenterX = (int)ScaleBetween(centerX, -67, 67, 0, 640);
-                    int scaledCenterY = (int)ScaleBetween(centerY, 50, -50, 0, 480);
-
-                    int length = (int)Math.Sqrt(scaledCenterX * scaledCenterX + scaledCenterY * scaledCenterY + 2 * 2);
-
-                    if (length != 0)
-                    {
-                        float normalizedX = (float)scaledCenterX / length;
-                        float normalizedY = (float)scaledCenterY / length;
-
-                        blobsParams.Add(new BlobCoordinates { X = normalizedX * 10, Y = normalizedY * 5, Z = (10f / length) * 10 });
-                    }
-                }
-            }
-
-            hlsFrame.Dispose();
-            bitmapSource.Dispose();
+            ProcessBlobCoordinates(redBlobCenters, bitmapSource);
         }
 
         private Mat ColorizeAndFlipDepthImage(DepthImageFrame depthFrame)
@@ -203,8 +182,6 @@ namespace Echo_Sense
 
         private List<Blob> ProcessColorMasks(Mat hlsFrame, Mat bitmapSource)
         {
-
-
             Mat redBinaryMask = CreateColorMask(hlsFrame, new MCvScalar(0, 100, 100), new MCvScalar(10, 255, 255));
             Mat blueBinaryMask = CreateColorMask(hlsFrame, new MCvScalar(100, 100, 100), new MCvScalar(120, 255, 255));
 
@@ -283,11 +260,13 @@ namespace Echo_Sense
                 mask.Dispose();
             }
         }
+
         // Define blobCenters as a class-level variable
         float ScaleBetween(float unscaledNum, float minAllowed, float maxAllowed, float min, float max)
         {
             return (maxAllowed - minAllowed) * (unscaledNum - min) / (max - min) + minAllowed;
         }
+
         /// <summary>
         /// Finds the centers of the blobs in the given binary image. If the area of a contour is larger than the given minimum area, it is considered a blob and its center is added to the list of blob centers. If the blob is already in the list of existing blobs, it is updated with the new position and area; otherwise, a new blob is created and added to the list.
         /// </summary>
@@ -295,8 +274,6 @@ namespace Echo_Sense
         /// <param name="minContourArea">The minimum area of a contour to be considered a blob</param>
         /// <param name="existingBlobs">The list of existing blobs to update or add to</param>
         /// <returns>The list of blob centers found in the given binary image</returns>
-
-
         private List<Blob> GetBlobCenters(Image<Gray, byte> binaryImage, double minContourArea, List<Blob> existingBlobs)
         {
             List<Blob> blobCenters = new List<Blob>();
@@ -469,7 +446,9 @@ namespace Echo_Sense
             }
             else
             {
+                // If no kinect is found, show an error message and close the application
                 MessageBox.Show("No Kinect Sensor Found Connected", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Close();
             }
         }
 
